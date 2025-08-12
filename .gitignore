@@ -13,3 +13,24 @@
 /captures
 .externalNativeBuild
 .cxx
+
+# SWIG generated JNI wrapper sources
+/iperf/src/main/jni/iperf-jni-wrap.cpp
+/iperf/src/main/jni/iperf-jni-wrap.h
+
+# SWIG generated Java bindings
+/iperf/src/main/java/com/synaptictools/iperf/iPerfLib.java
+/iperf/src/main/java/com/synaptictools/iperf/iPerfLibJNI.java
+/iperf/src/main/java/com/synaptictools/iperf/iPerfLibConstants.java
+/iperf/src/main/java/com/synaptictools/iperf/iPerfNative.java
+/iperf/src/main/java/com/synaptictools/iperf/iPerfNativeCallbacks.java
+/iperf/src/main/java/com/synaptictools/iperf/StringVector.java
+/iperf/src/main/java/com/synaptictools/iperf/IntVector.java
+/iperf/src/main/java/com/synaptictools/iperf/VecDouble.java
+/iperf/src/main/java/com/synaptictools/iperf/StringList.java
+/iperf/src/main/java/com/synaptictools/iperf/IntList.java
+/iperf/src/main/java/com/synaptictools/iperf/ListDouble.java
+
+# Autotools scan artifacts
+/iperf/src/main/jni/autoscan.log
+/iperf/src/main/jni/configure.scan
