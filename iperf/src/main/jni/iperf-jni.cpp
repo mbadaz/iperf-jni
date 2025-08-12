@@ -1,6 +1,8 @@
 #include <android/log.h>
 #include <utility>
 #include "iperf-jni.h"
+#include <errno.h>
+#include <string.h>
 
 #define OUTPUT_LENGTH  10240
 
@@ -13,7 +15,8 @@ int printf(const char *fmt, ...) {
     int cnt;
     va_start(argptr, fmt);
     char *buffer = (char *) malloc(OUTPUT_LENGTH);
-    memset(buffer, OUTPUT_LENGTH, 0);
+    // memset(dest, value, size)
+    memset(buffer, 0, OUTPUT_LENGTH);
     cnt = vsnprintf(buffer, OUTPUT_LENGTH, fmt, argptr);
     buffer[cnt] = '\0';
     if (iPerfNative::instance().isDebug()) {
@@ -30,7 +33,7 @@ int fprintf(FILE *fp, const char *fmt, ...) {
     int cnt;
     va_start(argptr, fmt);
     char *buffer = (char *) malloc(OUTPUT_LENGTH);
-    memset(buffer, OUTPUT_LENGTH, 0);
+    memset(buffer, 0, OUTPUT_LENGTH);
     cnt = vsnprintf(buffer, OUTPUT_LENGTH, fmt, argptr);
     buffer[cnt] = '\0';
     if (iPerfNative::instance().isDebug()) {
@@ -45,7 +48,7 @@ int fprintf(FILE *fp, const char *fmt, ...) {
 int vfprintf(FILE *fp, const char *fmt, va_list args) {
     int cnt;
     char *buffer = (char *) malloc(OUTPUT_LENGTH);
-    memset(buffer, OUTPUT_LENGTH, 0);
+    memset(buffer, 0, OUTPUT_LENGTH);
     cnt = vsnprintf(buffer, OUTPUT_LENGTH, fmt, args);
     buffer[cnt] = '\0';
     if (iPerfNative::instance().isDebug()) {
@@ -57,7 +60,8 @@ int vfprintf(FILE *fp, const char *fmt, va_list args) {
 }
 
 void perror(const char *msg) {
-    loge("ifref error message(perror): %s", msg);
+    // Include errno description for better diagnostics
+    loge("ifref error message(perror): %s: %s", msg, strerror(errno));
 }
 
 iPerfNative::iPerfNative() {
@@ -84,6 +88,7 @@ iPerfNative &iPerfNative::instance() {
 void iPerfNative::deInit() {
     if (this->test != nullptr) {
         iperf_free_test(this->test);
+        this->test = nullptr;
     }
 }
 
@@ -99,6 +104,10 @@ void iPerfNative::init(char *hostname, int port, char *streamTemplate, int durat
     this->json = json;
 
     this->test = iperf_new_test();
+    if (!this->test) {
+        loge("iperf_new_test() returned null");
+        return;
+    }
 
     // load defaults
     iperf_defaults(this->test);
@@ -150,6 +159,15 @@ int iPerfNative::execute() {
     auto run_future = std::async(std::launch::async, run, this->test);
     auto result = run_future.get();
     logd("finish iperf request, status: %d", result);
+    if (result < 0) {
+        // Surface iperf error details back to the UI/log
+        extern int i_errno; // declared by iperf
+        const char* err = iperf_strerror(i_errno);
+        loge("iperf failed: %s (i_errno=%d)", err ? err : "unknown", i_errno);
+        onAppendResult("\nERROR: ");
+        onAppendResult(err ? err : "unknown error");
+        onAppendResult("\n");
+    }
     return result;
 }
 
@@ -178,11 +196,11 @@ void iPerfNative::setStreamTemplate(char *streamTemplate) {
 }
 
 int iPerfNative::getDuration() const {
-    return download;
+    return duration;
 }
 
 void iPerfNative::setDuration(int duration) {
-    iPerfNative::download = duration;
+    iPerfNative::duration = duration;
 }
 
 int iPerfNative::getInterval() const {

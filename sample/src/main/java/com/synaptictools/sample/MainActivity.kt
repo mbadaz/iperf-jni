@@ -37,8 +37,8 @@ class MainActivity : AppCompatActivity() {
                             hostname = hostname,
                             port = port.toInt(),
                             stream = stream.path,
-                            download = true,
-                            useUDP = false,
+                            download = false,
+                            useUDP = true,
                             json = false,
                             debug = false
                         ),

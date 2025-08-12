@@ -42,16 +42,12 @@ static JNIEnv *JNU_GetEnv() {
 %include "std_array.i"
 %include "arrays_java.i"
 %include "std_vector.i"
-%include "std_list.i"
 
 %template(StringVector) std::vector<std::string>;
-%template(StringList) std::list<std::string>;
 %template(IntVector) std::vector<int>;
-%template(IntList) std::list<int>;
 
 namespace std {
         %template(VecDouble) vector<double>;
-        %template(ListDouble) list<double>;
 }
 
 // Try force Java GC before destroying the lib:
@@ -67,7 +63,7 @@ namespace std {
       try {
           System.loadLibrary("iperf-jni");
       } catch (UnsatisfiedLinkError e) {
-          System.err.println("Failed to load native library 'traceroutelib'\n" + e);
+          System.err.println("Failed to load native library 'iperf-jni'\n" + e);
       }
   }
 %}

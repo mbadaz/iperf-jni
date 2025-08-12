@@ -1,5 +1,8 @@
 /* iperf_config.h for android */
 
+/* Enable pthread support on Android */
+#define HAVE_PTHREAD 1
+
 /* Have CPU affinity support. */
 #define HAVE_CPU_AFFINITY 1
 

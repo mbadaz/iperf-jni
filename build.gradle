@@ -1,14 +1,16 @@
+ext {
+    ndkVersion = '29.0.13846066'
+}
 buildscript {
-    ext.kotlin_version = '1.5.31'
+    ext.kotlin_version = '1.9.25'
 
     ext {
         // global variables
-        compile_sdk_version = 29
-        kotlin_version = '1.5.31'
+        compile_sdk_version = 35
+        kotlin_version = '1.9.25'
         min_sdk_version = 21
-        build_tools_version = '30.0.2'
         gradle_maven_publish_plugin = '0.18.0'
-        dokka_version = '1.5.30'
+        dokka_version = '1.9.20' // Updated to be compatible with Kotlin 1.9.25
 
         // local variables (use def)
         def androidx_core_kts = '1.6.0'
@@ -33,7 +35,7 @@ buildscript {
         def retrofit_version = '2.9.0'
         def room_version = '2.3.0'
         def truth_version = '1.0'
-        def work_version = '2.2.0'
+        def work_version = '2.8.0'
         def dagger2_version = '2.37'
         def mockito_version = '3.6.28'
         def mockito_kotlin_version = '2.2.0'
@@ -149,8 +151,7 @@ buildscript {
 
     repositories {
         google()
-        jcenter() // Warning: this repository is going to shut down soon
-        mavenCentral()
+        mavenCentral() // Removed deprecated jcenter()
         plugins.withId("com.vanniktech.maven.publish") {
             mavenPublish {
                 sonatypeHost = "S01"
@@ -158,7 +159,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:7.0.2"
+        classpath 'com.android.tools.build:gradle:8.8.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
 
         classpath "com.vanniktech:gradle-maven-publish-plugin:$gradle_maven_publish_plugin"
@@ -172,16 +173,15 @@ buildscript {
 allprojects {
     repositories {
         google()
-        jcenter() // Warning: this repository is going to shut down soon
-        mavenCentral()
+        mavenCentral() // Removed deprecated jcenter()
     }
-    plugins.withId("com.vanniktech.maven.publish") {
-        mavenPublish {
-            sonatypeHost = "S01"
-        }
-    }
+//    plugins.withId("com.vanniktech.maven.publish") {
+//        mavenPublish {
+//            sonatypeHost = "S01"
+//        }
+//    }
 }
 
-task clean(type: Delete) {
+tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
