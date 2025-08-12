@@ -7,73 +7,96 @@ plugins {
 }
 
 android {
-    compileSdkVersion compile_sdk_version
+    compileSdk compile_sdk_version
 
     defaultConfig {
-        minSdkVersion min_sdk_version
-        targetSdkVersion compile_sdk_version
+        minSdk min_sdk_version
+        targetSdk compile_sdk_version
+        ndk {
+            abiFilters "arm64-v8a"
+        }
 
-        versionCode 1
         version = "1.0.0"
-        versionName "$version"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
 
         externalNativeBuild {
             cmake {
-                cFlags "-I./src/ -DHAVE_CONFIG_H -UHAVE_STDINT_H -UAF_INET6 -w -Wno-error=format-security -fPIE -pie"
+                cFlags "-I./src/ -DHAVE_CONFIG_H -UHAVE_STDINT_H -UAF_INET6 -w -Wno-error=format-security"
                 cppFlags "-I./src/ -std=c++14 -fexceptions -frtti -DANDROID_STL=c++_shared"
                 arguments "-DANDROID_STL=c++_shared"
             }
         }
     }
 
+    buildFeatures {
+        buildConfig = true  // Explicitly enable BuildConfig to resolve deprecation warning
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                debugSymbolLevel "SYMBOL_TABLE"
+            }
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '11'
     }
 
     externalNativeBuild {
         cmake {
             path file('src/main/jni/CMakeLists.txt')
+            version "3.22.1"
         }
     }
 
-    task swigBuild {
+    sourceSets {
+        main {
+            java {
+                exclude 'com/synaptictools/iperf/StringList.java'
+                exclude 'com/synaptictools/iperf/IntList.java'
+                exclude 'com/synaptictools/iperf/ListDouble.java'
+            }
+        }
+    }
+
+    tasks.register('swigBuild') {
         exec {
             workingDir '.'
             commandLine 'sh', '-c', 'swig -c++ -java -package com.synaptictools.iperf -outdir src/main/java/com/synaptictools/iperf -o src/main/jni/iperf-jni-wrap.cpp src/main/jni/iperf-jni.i'
             ignoreExitValue true
         }
     }
+
+    namespace 'com.synaptictools.iperf'
+    ndkVersion '29.0.13846066 rc3'
 }
 
-task sourcesJar(type: Jar) {
+tasks.register('sourcesJar', Jar) {
     group = 'jar'
+    archiveClassifier = 'sources'  // NEW - correct property
     from android.sourceSets.main.java.srcDirs
-    classifier = 'sources'
 }
 
-task javadoc(type: Javadoc) {
+tasks.register('javadoc', Javadoc) {
     source = android.sourceSets.main.java.srcDirs
     classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
 }
 
-task javadocJar(type: Jar, dependsOn: dokkaJavadoc) {
+tasks.register('javadocJar', Jar) {
+    dependsOn dokkaJavadoc
     group = 'jar'
-    classifier = 'javadoc'
+    archiveClassifier = 'javadoc'
     from javadoc.destinationDir
 }
 
@@ -101,15 +124,17 @@ static def grepFile(file, grepPattern) {
     return lines
 }
 
+mavenPublish {
+    androidVariantToPublish = "release"
+}
 
-
-task generate_iperf_version_string_h() {
+tasks.register('generate_iperf_version_string_h') {
     //
     // retrive some string constants from configure.ac and
     // write them to iperf_version.txt
     //
 
-    def configure_ac_path   =   'iperf/src/main/jni/iperf3/configure.ac'
+    def configure_ac_path = 'iperf/src/main/jni/iperf3/configure.ac'
     def version_string_h_path = 'iperf/src/main/jni/iperf3/src/version.h'
 
     doLast {
@@ -128,10 +153,10 @@ task generate_iperf_version_string_h() {
 
         new File(version_string_h_path).withWriter { out ->
 
-            out.println     "#define PACKAGE_NAME        \"${tokens[1]}\""
-            out.println     "#define PACKAGE_VERSION     \"${tokens[2]}\""
-            out.println     "#define IPERF_VERSION       \"${tokens[2]}\""
-            out.println     "#define PACKAGE_STRING      \"${tokens[1]} ${tokens[2]}\""
+            out.println "#define PACKAGE_NAME        \"${tokens[1]}\""
+            out.println "#define PACKAGE_VERSION     \"${tokens[2]}\""
+            out.println "#define IPERF_VERSION       \"${tokens[2]}\""
+            out.println "#define PACKAGE_STRING      \"${tokens[1]} ${tokens[2]}\""
             if (tokens.length > 3)
                 out.println "#define PACKAGE_BUGREPORT   \"${tokens[3]}\""
             if (tokens.length > 4)
@@ -143,3 +168,4 @@ task generate_iperf_version_string_h() {
 }
 
 preBuild.dependsOn generate_iperf_version_string_h
+preBuild.dependsOn swigBuild

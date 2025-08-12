@@ -1,12 +1,13 @@
-# Sets the minimum version of CMake required to build the native
-# library. You should either keep the default value or only pass a
-# value of 3.4.0 or lower.
+# Modern minimum CMake that matches recent Android toolchains
+cmake_minimum_required(VERSION 3.22)
 
-cmake_minimum_required(VERSION 3.4.1)
+project("iperf")
+
+# Ensure PIC for all targets
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #set(CMAKE_CXX_STANDARD 11)
 set(IPERF_SRC ${CMAKE_SOURCE_DIR}/iperf3)
-
 
 # check some architecture specific build options
 if ("${ANDROID_ABI}" MATCHES "arm64-v8a|x86_64")
@@ -15,6 +16,9 @@ endif ()
 
 # generate src/iperf_config.h
 configure_file(${CMAKE_SOURCE_DIR}/../assets/iperf_config.h.in ${CMAKE_BINARY_DIR}/src/iperf_config.h)
+
+# Make sure we can include the generated config header
+include_directories(${CMAKE_BINARY_DIR}/src)
 
 ###################################
 
@@ -25,7 +29,7 @@ include_directories(${IPERF_SRC}/src)
 # You can define multiple libraries, and CMake builds it for you.
 # Gradle automatically packages shared libraries with your APK.
 
-add_library( # build libiperf.so
+add_library( # build libiperf.a
         iperf
         STATIC
 
@@ -41,9 +45,13 @@ add_library( # build libiperf.so
         ${IPERF_SRC}/src/iperf_util.c
         ${IPERF_SRC}/src/net.c
         ${IPERF_SRC}/src/tcp_info.c
-        ${IPERF_SRC}/src/tcp_window_size.c
         ${IPERF_SRC}/src/timer.c
         ${IPERF_SRC}/src/units.c
+        # Android pthread shims
+        ${IPERF_SRC}/src/iperf_pthread.c
+        # Missing sources for time and QoS parsing
+        ${IPERF_SRC}/src/iperf_time.c
+        ${IPERF_SRC}/src/dscp.c
         )
 
 add_library(
@@ -52,26 +60,39 @@ add_library(
         iperf-jni-wrap.cpp iperf-jni.cpp
 )
 
-# Searches for a specified prebuilt library and stores the path as a
-# variable. Because system libraries are included in the search path by
-# default, you only need to specify the name of the public NDK library
-# you want to add. CMake verifies that the library exists before
-# completing its build.
-
-find_library( # Sets the name of the path variable.
+# NDK/system libraries
+find_library(
         log-lib
-
-        # Specifies the name of the NDK library that
-        # you want CMake to locate.
         log)
 
-# Specifies libraries CMake should link to your target library. You
-# can link multiple libraries, such as libraries you define in the
-# build script, prebuilt third-party libraries, or system libraries.
+# Threads package maps to correct flags on Android
+find_package(Threads REQUIRED)
+
+# Link libraries
+target_link_libraries(iperf PRIVATE Threads::Threads)
 
 target_link_libraries(iperf-jni
+        PRIVATE
         iperf
+        Threads::Threads
+        ${log-lib}
+)
 
-        # Links the target library to the log library
-        # included in the NDK.
-        ${log-lib})
+# Keep exported symbols minimal; JNI uses JNIEXPORT so this is safe
+if (CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(iperf PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+    target_compile_options(iperf-jni PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+endif ()
+
+# Compile definitions to ensure pthread functions are available
+target_compile_definitions(iperf PRIVATE
+        _GNU_SOURCE
+        _POSIX_C_SOURCE=200809L
+        HAVE_PTHREAD=1
+)
+
+target_compile_definitions(iperf-jni PRIVATE
+        _GNU_SOURCE
+        _POSIX_C_SOURCE=200809L
+        HAVE_PTHREAD=1
+)
