@@ -33,6 +33,16 @@ object IPerf: iPerfNative() {
         requestResult = null
     }
 
+    private fun extractErrorMessage(full: String?): String? {
+        if (full.isNullOrEmpty()) return null
+        val marker = "ERROR:"
+        val idx = full.lastIndexOf(marker)
+        if (idx < 0) return null
+        val after = full.substring(idx + marker.length)
+        val firstLine = after.lines().firstOrNull()?.trim()
+        return firstLine?.takeIf { it.isNotEmpty() }
+    }
+
     fun request(config: IPerfConfig): IPerfResult<String> {
         try {
             isDebug = config.debug
@@ -53,9 +63,11 @@ object IPerf: iPerfNative() {
             }
         } catch (e: Exception) {
             callbacks?.onError?.invoke(IPerfException(e))
-            return IPerfResult.Error(IPerfException(e))
+            return IPerfResult.Error(IPerfException(e), message = e.message)
         }
-        callbacks?.onError?.invoke(IPerfException("IPerf Request failed"))
-        return IPerfResult.Error(IPerfException("IPerf Request failed"))
+        val errMsg = extractErrorMessage(requestResult?.toString()) ?: "IPerf Request failed"
+        val ex = IPerfException(errMsg)
+        callbacks?.onError?.invoke(ex)
+        return IPerfResult.Error(ex, message = errMsg)
     }
 }
